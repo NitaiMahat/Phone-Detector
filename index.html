@@ -2,13 +2,91 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AI Study Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Guard - Phone Detection Monitor</title>
     <link rel="stylesheet" href="monitor-ui.css">
 </head>
 <body>
-    <video id="webcam" autoplay muted></video>
-    <canvas id="canvas-overlay" style="pointer-events: none;"></canvas>
-    <div id="status-panel">Initializing Lite0 Model...</div>
+    <!-- Homepage Screen -->
+    <div id="homepage" class="screen active">
+        <div class="homepage-container">
+            <div class="logo-section">
+                <h1>📱 Focus Guard</h1>
+                <p class="tagline">Stay Focused, Stay Productive</p>
+            </div>
+            
+            <div class="motive-section">
+                <h2>Why Focus Guard?</h2>
+                <div class="motive-cards">
+                    <div class="motive-card">
+                        <div class="icon">🎯</div>
+                        <h3>Better Focus</h3>
+                        <p>Eliminate distractions and maintain your concentration during study or work sessions.</p>
+                    </div>
+                    <div class="motive-card">
+                        <div class="icon">⏰</div>
+                        <h3>Time Management</h3>
+                        <p>Reduce phone usage and reclaim valuable time for important tasks.</p>
+                    </div>
+                    <div class="motive-card">
+                        <div class="icon">📈</div>
+                        <h3>Productivity Boost</h3>
+                        <p>Build better habits and increase your overall productivity.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <div class="toggle-container">
+                    <label class="toggle-label">
+                        <span>Phone Detection</span>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="detection-toggle">
+                            <span class="slider"></span>
+                        </div>
+                    </label>
+                    <p class="toggle-description">Enable to start monitoring for phone usage</p>
+                </div>
+                
+                <button id="start-btn" class="start-button" disabled>
+                    Start Monitoring
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Permission Screen -->
+    <div id="permission-screen" class="screen">
+        <div class="permission-container">
+            <div class="permission-icon">📹</div>
+            <h2>Camera Permission Required</h2>
+            <p>Focus Guard needs access to your camera to detect phone usage.</p>
+            <p class="permission-note">Your video is processed locally and never recorded or shared.</p>
+            <button id="request-permission-btn" class="permission-button">
+                Grant Camera Access
+            </button>
+        </div>
+    </div>
+
+    <!-- Detection Screen -->
+    <div id="detection-screen" class="screen">
+        <video id="webcam" autoplay muted style="pointer-events: none;"></video>
+        <canvas id="canvas-overlay" style="pointer-events: none;"></canvas>
+        <div id="status-panel">Initializing System...</div>
+        
+        <div class="control-panel">
+            <button id="stop-btn" class="stop-button">Stop Monitoring</button>
+            <div class="toggle-container-inline">
+                <label class="toggle-label-inline">
+                    <span>Sound Alerts</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="sound-toggle" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="detection-engine.js"></script>
 </body>
