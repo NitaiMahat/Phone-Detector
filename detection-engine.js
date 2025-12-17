@@ -31,7 +31,9 @@ const homepage = document.getElementById('homepage');
 const permissionScreen = document.getElementById('permission-screen');
 const detectionScreen = document.getElementById('detection-screen');
 const detectionToggle = document.getElementById('detection-toggle');
+const detectionToggleAlt = document.getElementById('detection-toggle-alt');
 const startBtn = document.getElementById('start-btn');
+const startBtnAlt = document.getElementById('start-btn-alt');
 const requestPermissionBtn = document.getElementById('request-permission-btn');
 const stopBtn = document.getElementById('stop-btn');
 const soundToggle = document.getElementById('sound-toggle');
@@ -488,14 +490,37 @@ function showScreen(screenName) {
     }
 }
 
-// Event Listeners
-detectionToggle.addEventListener('change', (e) => {
-    startBtn.disabled = !e.target.checked;
-});
+// Event Listeners - Sync both toggle buttons
+function syncToggles(isChecked) {
+    if (detectionToggle) detectionToggle.checked = isChecked;
+    if (detectionToggleAlt) detectionToggleAlt.checked = isChecked;
+    if (startBtn) startBtn.disabled = !isChecked;
+    if (startBtnAlt) startBtnAlt.disabled = !isChecked;
+}
 
-startBtn.addEventListener('click', () => {
-    showScreen('permission');
-});
+if (detectionToggle) {
+    detectionToggle.addEventListener('change', (e) => {
+        syncToggles(e.target.checked);
+    });
+}
+
+if (detectionToggleAlt) {
+    detectionToggleAlt.addEventListener('change', (e) => {
+        syncToggles(e.target.checked);
+    });
+}
+
+if (startBtn) {
+    startBtn.addEventListener('click', () => {
+        showScreen('permission');
+    });
+}
+
+if (startBtnAlt) {
+    startBtnAlt.addEventListener('click', () => {
+        showScreen('permission');
+    });
+}
 
 requestPermissionBtn.addEventListener('click', async () => {
     try {
@@ -544,8 +569,7 @@ stopBtn.addEventListener('click', () => {
         video.srcObject = null;
     }
     showScreen('homepage');
-    detectionToggle.checked = false;
-    startBtn.disabled = true;
+    syncToggles(false);
 });
 
 soundToggle.addEventListener('change', (e) => {

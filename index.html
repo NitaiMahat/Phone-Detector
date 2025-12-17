@@ -4,67 +4,159 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Focus Guard - Phone Detection Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="monitor-ui.css">
 </head>
 <body>
     <!-- Homepage Screen -->
     <div id="homepage" class="screen active">
-        <div class="homepage-container">
-            <div class="logo-section">
-                <h1>📱 Focus Guard</h1>
-                <p class="tagline">Stay Focused, Stay Productive</p>
-            </div>
-            
-            <div class="motive-section">
-                <h2>Why Focus Guard?</h2>
-                <div class="motive-cards">
-                    <div class="motive-card">
-                        <div class="icon">🎯</div>
-                        <h3>Better Focus</h3>
-                        <p>Eliminate distractions and maintain your concentration during study or work sessions.</p>
+        <div class="homepage-wrapper">
+            <!-- Navigation -->
+            <nav class="main-nav">
+                <div class="nav-container">
+                    <div class="nav-brand">
+                        <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="5" y="2" width="14" height="20" rx="2" fill="#34C759"/>
+                            <rect x="7" y="5" width="10" height="12" rx="1" fill="white"/>
+                        </svg>
+                        <span>Focus Guard</span>
                     </div>
-                    <div class="motive-card">
-                        <div class="icon">⏰</div>
-                        <h3>Time Management</h3>
-                        <p>Reduce phone usage and reclaim valuable time for important tasks.</p>
-                    </div>
-                    <div class="motive-card">
-                        <div class="icon">📈</div>
-                        <h3>Productivity Boost</h3>
-                        <p>Build better habits and increase your overall productivity.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="control-section">
-                <div class="toggle-container">
-                    <label class="toggle-label">
-                        <span>Phone Detection</span>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="detection-toggle">
-                            <span class="slider"></span>
+                    <div class="nav-right">
+                        <a href="#ready-to-focus" class="nav-link">About</a>
+                        <div class="header-controls">
+                            <label class="header-toggle">
+                                <input type="checkbox" id="detection-toggle">
+                                <span class="toggle-switch-minimal"></span>
+                            </label>
+                            <button id="start-btn" class="btn-primary btn-header" disabled>
+                                <span>Start</span>
+                            </button>
                         </div>
-                    </label>
-                    <p class="toggle-description">Enable to start monitoring for phone usage</p>
+                    </div>
                 </div>
-                
-                <button id="start-btn" class="start-button" disabled>
-                    Start Monitoring
-                </button>
-            </div>
+            </nav>
+
+            <!-- Hero Section -->
+            <section class="hero-section">
+                <div class="hero-container">
+                    <div class="hero-content">
+                        <h1 class="hero-title">
+                            Stay Focused.<br>
+                            Stay Productive.
+                        </h1>
+                        <p class="hero-description">
+                            Eliminate phone distractions and maintain your concentration during study or work sessions.
+                        </p>
+                    </div>
+                    <div class="hero-image">
+                        <img src="humanPhone.png" alt="Phone detection illustration" class="hero-illustration">
+                    </div>
+                </div>
+            </section>
+
+            <!-- About Section -->
+            <section id="about" class="about-section">
+                <div class="about-content">
+                    <h2 class="about-title">About Focus Guard</h2>
+                    <p class="about-text">
+                        Focus Guard is an AI-powered phone detection system that helps you stay focused and productive. 
+                        It monitors your workspace using your camera and alerts you when it detects phone usage, 
+                        helping you build better habits and eliminate distractions during work or study sessions.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Control Section (Ready to Focus) - Middle -->
+            <section id="ready-to-focus" class="control-section">
+                <div class="control-card">
+                    <div class="control-header">
+                        <h2 class="control-title">Ready to Focus?</h2>
+                        <p class="control-subtitle">Enable phone detection to get started</p>
+                    </div>
+                    
+                    <div class="toggle-wrapper">
+                        <label class="custom-toggle">
+                            <input type="checkbox" id="detection-toggle-alt">
+                            <span class="toggle-label-text">Enable Phone Detection</span>
+                            <span class="toggle-switch-custom"></span>
+                        </label>
+                    </div>
+                    
+                    <button id="start-btn-alt" class="btn-primary" disabled>
+                        <span>Start Monitoring</span>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Features Section (Manage your focus) - End -->
+            <section class="features-section">
+                <div class="section-header">
+                    <h2 class="section-title">Manage your focus in a single system</h2>
+                    <p class="section-subtitle">Who is Focus Guard suitable for?</p>
+                </div>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="24" cy="24" r="20" stroke="#34C759" stroke-width="2"/>
+                                <path d="M24 12V24L32 28" stroke="#34C759" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">Better Focus</h3>
+                        <p class="feature-text">Eliminate distractions and maintain concentration during work sessions.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="8" y="8" width="32" height="32" rx="4" stroke="#34C759" stroke-width="2"/>
+                                <path d="M24 16V24L30 28" stroke="#34C759" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">Time Management</h3>
+                        <p class="feature-text">Reduce phone usage and reclaim valuable time for important tasks.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M24 8L30 18H38L30 26L32 36L24 30L16 36L18 26L10 18H18L24 8Z" stroke="#34C759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">Productivity</h3>
+                        <p class="feature-text">Build better habits and increase your overall productivity.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer class="main-footer">
+                <p>Your privacy matters. All processing happens locally.</p>
+            </footer>
         </div>
     </div>
 
     <!-- Permission Screen -->
     <div id="permission-screen" class="screen">
-        <div class="permission-container">
-            <div class="permission-icon">📹</div>
-            <h2>Camera Permission Required</h2>
-            <p>Focus Guard needs access to your camera to detect phone usage.</p>
-            <p class="permission-note">Your video is processed locally and never recorded or shared.</p>
-            <button id="request-permission-btn" class="permission-button">
-                Grant Camera Access
-            </button>
+        <div class="permission-wrapper">
+            <div class="permission-content">
+                <div class="permission-icon-wrapper">
+                    <img src="humanPhone.png" alt="Phone detection illustration" class="permission-illustration">
+                </div>
+                <h2 class="permission-title">Camera Access Required</h2>
+                <p class="permission-text">
+                    Focus Guard needs access to your camera to detect phone usage.
+                </p>
+                <p class="permission-note">
+                    Your video is processed locally and never recorded or shared.
+                </p>
+                <button id="request-permission-btn" class="btn-primary">
+                    <span>Grant Access</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -75,14 +167,14 @@
         <div id="status-panel">Initializing System...</div>
         
         <div class="control-panel">
-            <button id="stop-btn" class="stop-button">Stop Monitoring</button>
-            <div class="toggle-container-inline">
-                <label class="toggle-label-inline">
-                    <span>Sound Alerts</span>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="sound-toggle" checked>
-                        <span class="slider"></span>
-                    </div>
+            <button id="stop-btn" class="btn-secondary">
+                <span>Stop</span>
+            </button>
+            <div class="sound-toggle-wrapper">
+                <label class="custom-toggle-inline">
+                    <input type="checkbox" id="sound-toggle" checked>
+                    <span class="toggle-label-text-inline">Sound</span>
+                    <span class="toggle-switch-custom"></span>
                 </label>
             </div>
         </div>
