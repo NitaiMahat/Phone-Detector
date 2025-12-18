@@ -43,6 +43,8 @@ const startBtnAlt = document.getElementById('start-btn-alt');
 const requestPermissionBtn = document.getElementById('request-permission-btn');
 const stopBtn = document.getElementById('stop-btn');
 const soundToggle = document.getElementById('sound-toggle');
+const pipToggle = document.getElementById('pip-toggle');
+const pipInfo = document.getElementById('pip-info');
 
 const video = document.getElementById('webcam');
 const canvas = document.getElementById('canvas-overlay');
@@ -60,14 +62,90 @@ const SOUND_COOLDOWN = 2000; // 2 seconds between sound alerts
 // Sound notification system (works even when tab is inactive)
 let audioContext = null;
 let soundEnabled = true;
+let isTabHidden = false;
 
 function initAudio() {
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Keep audio context alive by playing silent audio periodically
+        setInterval(() => {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }, 1000);
     } catch (e) {
         console.warn('Audio context not supported:', e);
     }
 }
+
+// Picture-in-Picture support for background detection
+let pipEnabled = true; // User can toggle this
+
+async function enterPictureInPicture() {
+    if (!document.pictureInPictureEnabled) {
+        console.log('Picture-in-Picture not supported');
+        return false;
+    }
+    
+    if (!video || !video.srcObject) {
+        console.log('Video not ready for PiP');
+        return false;
+    }
+    
+    try {
+        if (document.pictureInPictureElement) {
+            // Already in PiP
+            return true;
+        }
+        await video.requestPictureInPicture();
+        console.log('Entered Picture-in-Picture mode');
+        return true;
+    } catch (e) {
+        console.warn('Failed to enter PiP:', e);
+        return false;
+    }
+}
+
+async function exitPictureInPicture() {
+    if (document.pictureInPictureElement) {
+        try {
+            await document.exitPictureInPicture();
+            console.log('Exited Picture-in-Picture mode');
+        } catch (e) {
+            console.warn('Failed to exit PiP:', e);
+        }
+    }
+}
+
+// Track when tab is hidden/visible
+document.addEventListener('visibilitychange', async () => {
+    isTabHidden = document.hidden;
+    console.log('Tab visibility changed:', isTabHidden ? 'hidden' : 'visible');
+    
+    // Resume audio when tab becomes visible
+    if (!isTabHidden && audioContext && audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    
+    // Auto-enable Picture-in-Picture when tab is hidden (keeps detection running!)
+    if (isTabHidden && isRunning && pipEnabled) {
+        const entered = await enterPictureInPicture();
+        if (entered) {
+            console.log('Auto-enabled PiP for background detection');
+        }
+    }
+    
+    // Exit PiP when tab becomes visible again
+    if (!isTabHidden && document.pictureInPictureElement) {
+        await exitPictureInPicture();
+    }
+});
+
+// Handle PiP window close
+video.addEventListener('leavepictureinpicture', () => {
+    console.log('Left Picture-in-Picture mode');
+});
 
 function playAlertSound() {
     if (!soundEnabled || !audioContext) return;
@@ -78,6 +156,14 @@ function playAlertSound() {
     lastPhoneDetectionTime = now;
     
     try {
+        // Resume audio context first (required for background playback)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        
+        // Play a more noticeable alert when tab is hidden
+        const isBackground = document.hidden;
+        
         // Create a beep sound using Web Audio API
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
@@ -85,21 +171,87 @@ function playAlertSound() {
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
-        oscillator.frequency.value = 800; // Higher pitch
-        oscillator.type = 'sine';
+        // Louder and longer beep when in background
+        oscillator.frequency.value = isBackground ? 1000 : 800;
+        oscillator.type = isBackground ? 'square' : 'sine'; // Square wave is more noticeable
         
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        const volume = isBackground ? 0.5 : 0.3;
+        const duration = isBackground ? 0.8 : 0.5;
+        
+        gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
         
         oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
+        oscillator.stop(audioContext.currentTime + duration);
         
-        // Resume audio context if suspended (required by some browsers)
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
+        // Play a second beep for background alerts
+        if (isBackground) {
+            setTimeout(() => {
+                if (!soundEnabled || !audioContext) return;
+                const osc2 = audioContext.createOscillator();
+                const gain2 = audioContext.createGain();
+                osc2.connect(gain2);
+                gain2.connect(audioContext.destination);
+                osc2.frequency.value = 1200;
+                osc2.type = 'square';
+                gain2.gain.setValueAtTime(0.5, audioContext.currentTime);
+                gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                osc2.start(audioContext.currentTime);
+                osc2.stop(audioContext.currentTime + 0.3);
+            }, 300);
         }
+        
+        console.log('Alert sound played', isBackground ? '(background)' : '(foreground)');
     } catch (e) {
         console.warn('Failed to play sound:', e);
+    }
+}
+
+// Show browser notification
+let lastNotificationTime = 0;
+const NOTIFICATION_COOLDOWN = 5000; // 5 seconds between notifications
+
+function showNotification() {
+    // Check cooldown
+    const now = Date.now();
+    if (now - lastNotificationTime < NOTIFICATION_COOLDOWN) return;
+    
+    // Only show notification if permission granted
+    if (!('Notification' in window)) {
+        console.log('Notifications not supported');
+        return;
+    }
+    
+    if (Notification.permission !== 'granted') {
+        console.log('Notification permission not granted');
+        return;
+    }
+    
+    lastNotificationTime = now;
+    
+    try {
+        const notification = new Notification('📱 Phone Detected!', {
+            body: 'A phone has been detected in your workspace. Stay focused!',
+            icon: 'humanPhone.png',
+            tag: 'phone-detection', // Prevents duplicate notifications
+            requireInteraction: false, // Auto-dismiss after a few seconds
+            silent: false // Allow system sound too
+        });
+        
+        // Auto-close after 4 seconds
+        setTimeout(() => {
+            notification.close();
+        }, 4000);
+        
+        // Click to focus the tab
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+        
+        console.log('Notification shown');
+    } catch (e) {
+        console.warn('Failed to show notification:', e);
     }
 }
 
@@ -509,17 +661,11 @@ function updateStatus(found) {
         statusPanel.classList.remove('status-safe');
         statusPanel.classList.add('status-danger');
         
-        // Play sound alert
+        // Play sound alert (works in background too)
         playAlertSound();
         
-        // Show browser notification if tab is not active
-        if (document.hidden && Notification.permission === 'granted') {
-            new Notification('Phone Detected!', {
-                body: 'A phone has been detected. Stay focused!',
-                icon: '📱',
-                tag: 'phone-detection'
-            });
-        }
+        // Show browser notification (especially useful when tab is not active)
+        showNotification();
     } else {
         statusPanel.innerText = "Scanning...";
         statusPanel.classList.remove('status-danger');
@@ -587,9 +733,22 @@ requestPermissionBtn.addEventListener('click', async () => {
         showScreen('detection');
         initAudio();
         
-        // Request notification permission
+        // Request notification permission with user feedback
         if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
+            const permission = await Notification.requestPermission();
+            console.log('Notification permission:', permission);
+            if (permission === 'granted') {
+                // Show a test notification
+                new Notification('Focus Guard Active!', {
+                    body: 'You will be notified when a phone is detected, even if you switch tabs.',
+                    icon: 'humanPhone.png',
+                    tag: 'welcome'
+                });
+            }
+        } else if (Notification.permission === 'granted') {
+            console.log('Notifications already enabled');
+        } else {
+            console.log('Notifications denied or not supported');
         }
         
         // Start the detection system (model loading)
@@ -614,8 +773,14 @@ requestPermissionBtn.addEventListener('click', async () => {
     }
 });
 
-stopBtn.addEventListener('click', () => {
+stopBtn.addEventListener('click', async () => {
     isRunning = false;
+    
+    // Exit Picture-in-Picture first
+    if (document.pictureInPictureElement) {
+        await exitPictureInPicture();
+    }
+    
     if (video.srcObject) {
         video.srcObject.getTracks().forEach(track => track.stop());
         video.srcObject = null;
@@ -627,6 +792,30 @@ stopBtn.addEventListener('click', () => {
 soundToggle.addEventListener('change', (e) => {
     soundEnabled = e.target.checked;
 });
+
+// PiP toggle handler
+if (pipToggle) {
+    pipToggle.addEventListener('change', (e) => {
+        pipEnabled = e.target.checked;
+        console.log('Background detection (PiP):', pipEnabled ? 'enabled' : 'disabled');
+        
+        // If disabled and currently in PiP, exit it
+        if (!pipEnabled && document.pictureInPictureElement) {
+            exitPictureInPicture();
+        }
+    });
+}
+
+// Hide PiP info after 8 seconds
+if (pipInfo) {
+    setTimeout(() => {
+        pipInfo.style.opacity = '0';
+        pipInfo.style.transition = 'opacity 1s';
+        setTimeout(() => {
+            pipInfo.style.display = 'none';
+        }, 1000);
+    }, 8000);
+}
 
 // Initialize on page load
 showScreen('homepage');

@@ -1,4 +1,4 @@
-# Run this script to download YOLOv8n ONNX model
+# I used this script to download yolov8n.onnx model
 # Usage: python download_yolov8.py
 
 from ultralytics import YOLO
