@@ -1,4 +1,5 @@
-// YOLOv5 Nano Detection Engine - Non-blocking version
+// YOLOv8 Nano Detection Engine - Non-blocking version
+// Supports both YOLOv5 and YOLOv8 models (auto-detected)
 // Load ONNX.js from CDN
 let ort = null;
 
@@ -8,14 +9,19 @@ async function loadONNX() {
         return window.ort;
     }
     
-    // Try loading from CDN
+    // Try loading from CDN - use version 1.18 for better compatibility
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.0/dist/ort.min.js';
+    script.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js';
     script.async = true;
     
     return new Promise((resolve, reject) => {
         script.onload = () => {
             if (window.ort) {
+                // Configure WASM with more memory
+                if (window.ort.env && window.ort.env.wasm) {
+                    window.ort.env.wasm.numThreads = 1;
+                    window.ort.env.wasm.simd = true;
+                }
                 resolve(window.ort);
             } else {
                 reject(new Error('ONNX.js failed to load'));
@@ -48,7 +54,7 @@ let isRunning = false; // Start as false, only run when user enables
 let isProcessing = false;
 let lastPredictionTime = 0;
 let lastPhoneDetectionTime = 0;
-const DETECTION_INTERVAL = 3000; // 3 seconds - very conservative to prevent blocking
+const DETECTION_INTERVAL = 2000; // 2 seconds - more frequent detection
 const SOUND_COOLDOWN = 2000; // 2 seconds between sound alerts
 
 // Sound notification system (works even when tab is inactive)
@@ -130,26 +136,44 @@ async function startSystem() {
             console.warn('ONNX.js env.wasm not available, using defaults');
         }
         
-        statusPanel.innerText = "Loading YOLOv5 Model...";
+        statusPanel.innerText = "Loading YOLOv8 Model...";
         
-        // Load YOLOv5 Nano ONNX model from local file
-        const modelUrl = './yolov5n.onnx'; // Your local model file
+        // Load YOLO ONNX model from local file
+        // Supports both YOLOv5 and YOLOv8 (auto-detected by output format)
+        const modelUrl = './yolov8n.onnx'; // YOLOv8 Nano - 33% more accurate than v5!
         
         if (!ort || !ort.InferenceSession) {
             throw new Error('ONNX.js library not loaded properly');
         }
         
         try {
-            console.log('Loading YOLOv5 Nano model from:', modelUrl);
-            model = await ort.InferenceSession.create(modelUrl, {
-                executionProviders: ['wasm'], // Use WASM (more stable, less blocking)
-                graphOptimizationLevel: 'all',
+            console.log('Loading YOLO model from:', modelUrl);
+            
+            // Fetch the model as ArrayBuffer (more reliable for large models)
+            statusPanel.innerText = "Downloading model...";
+            const response = await fetch(modelUrl);
+            if (!response.ok) {
+                throw new Error(`Model file not found (HTTP ${response.status})`);
+            }
+            
+            const contentLength = response.headers.get('content-length');
+            console.log('Model file found, size:', contentLength, 'bytes');
+            
+            const modelBuffer = await response.arrayBuffer();
+            console.log('Model downloaded, creating session...');
+            statusPanel.innerText = "Initializing AI...";
+            
+            // Load from ArrayBuffer
+            model = await ort.InferenceSession.create(modelBuffer, {
+                executionProviders: ['wasm'],
+                graphOptimizationLevel: 'basic',
             });
             statusPanel.innerText = "Model Loaded Successfully!";
             console.log('Model loaded! Input names:', model.inputNames, 'Output names:', model.outputNames);
         } catch (modelError) {
             console.error('Model load error:', modelError);
-            throw new Error(`Failed to load model: ${modelError.message}. Make sure yolov5n.onnx is in the project folder.`);
+            const errorMsg = modelError.message || modelError.toString() || 'Unknown error';
+            throw new Error(`Failed to load model: ${errorMsg}. Make sure yolov8n.onnx is in the project folder.`);
         }
 
         statusPanel.innerText = "Model Ready - Waiting for camera...";
@@ -159,7 +183,7 @@ async function startSystem() {
             if (video.srcObject && video.readyState >= 2) {
                 clearInterval(checkVideo);
                 isRunning = true;
-                statusPanel.innerText = "Active: YOLOv5 Nano";
+                statusPanel.innerText = "Active: YOLOv8 Nano";
                 statusPanel.classList.add('status-safe');
                 // Start detection with delay
                 setTimeout(() => {
@@ -181,7 +205,7 @@ async function startSystem() {
     }
 }
 
-// Preprocess image for YOLOv5
+// Preprocess image for YOLO models
 function preprocess(imageData, modelWidth, modelHeight) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -194,35 +218,85 @@ function preprocess(imageData, modelWidth, modelHeight) {
     const input = new Float32Array(3 * modelWidth * modelHeight);
     const data = imageDataProcessed.data;
     
-    // Normalize to [0, 1] and convert RGB to BGR
+    // Normalize to [0, 1] - YOLO expects RGB (not BGR!)
     for (let i = 0; i < data.length; i += 4) {
         const r = data[i] / 255.0;
         const g = data[i + 1] / 255.0;
         const b = data[i + 2] / 255.0;
         
         const index = Math.floor(i / 4);
-        input[index] = b; // B
+        input[index] = r; // R (was incorrectly B)
         input[index + modelWidth * modelHeight] = g; // G
-        input[index + 2 * modelWidth * modelHeight] = r; // R
+        input[index + 2 * modelWidth * modelHeight] = b; // B (was incorrectly R)
     }
     
     return input;
 }
 
-// Post-process YOLOv5 output
+// Post-process YOLO output (supports both YOLOv5 and YOLOv8)
 function postprocess(output, imgWidth, imgHeight, modelWidth, modelHeight) {
     const detections = [];
     const outputDims = output.dims;
     const outputData = Array.from(output.data);
     
-    // YOLOv5 ONNX output format: [1, num_boxes, 85] where 85 = [x_center, y_center, w, h, conf, 80 class_scores]
-    // Or sometimes: [1, num_boxes, 6] if NMS is applied (x, y, w, h, conf, class)
     const scaleX = imgWidth / modelWidth;
     const scaleY = imgHeight / modelHeight;
     
-    // Check output format
+    console.log('Output dims:', outputDims);
+    
+    // YOLOv8 format: [1, 84, 8400] - transposed!
+    // 84 = 4 (x,y,w,h) + 80 (class scores)
+    // 8400 = number of detection candidates
+    if (outputDims.length === 3 && outputDims[1] === 84) {
+        console.log('Detected YOLOv8 output format');
+        const numClasses = 80;
+        const numDetections = outputDims[2]; // 8400
+        
+        for (let i = 0; i < numDetections; i++) {
+            // YOLOv8 is transposed: data is stored as [feature][detection]
+            const x_center = outputData[0 * numDetections + i] * scaleX;
+            const y_center = outputData[1 * numDetections + i] * scaleY;
+            const w = outputData[2 * numDetections + i] * scaleX;
+            const h = outputData[3 * numDetections + i] * scaleY;
+            
+            // Find class with highest score (no separate objectness in YOLOv8)
+            let maxClass = 0;
+            let maxScore = outputData[4 * numDetections + i]; // First class score
+            
+            for (let j = 1; j < numClasses; j++) {
+                const score = outputData[(4 + j) * numDetections + i];
+                if (score > maxScore) {
+                    maxScore = score;
+                    maxClass = j;
+                }
+            }
+            
+            // Skip low confidence detections
+            if (maxScore < 0.4) continue;
+            
+            // ONLY DETECT PHONES (class 67 = cell phone in COCO)
+            if (maxClass !== 67) continue;
+            
+            console.log(`YOLOv8 Phone detected! Confidence: ${(maxScore * 100).toFixed(1)}%`);
+            
+            detections.push({
+                x: x_center - w / 2,
+                y: y_center - h / 2,
+                width: w,
+                height: h,
+                class: maxClass,
+                className: CLASS_NAMES[maxClass] || `class_${maxClass}`,
+                score: maxScore
+            });
+        }
+        
+        return nms(detections, 0.45);
+    }
+    
+    // YOLOv5 format: [1, 25200, 85]
+    // 85 = 4 (x,y,w,h) + 1 (objectness) + 80 (class scores)
     if (outputDims.length === 3 && outputDims[2] === 85) {
-        // Format: [batch, num_boxes, 85]
+        console.log('Detected YOLOv5 output format');
         const numBoxes = outputDims[1];
         
         for (let i = 0; i < numBoxes; i++) {
@@ -231,9 +305,9 @@ function postprocess(output, imgWidth, imgHeight, modelWidth, modelHeight) {
             const y_center = outputData[offset + 1] * scaleY;
             const w = outputData[offset + 2] * scaleX;
             const h = outputData[offset + 3] * scaleY;
-            const conf = outputData[offset + 4];
+            const conf = outputData[offset + 4]; // Objectness score
             
-            if (conf < 0.25) continue; // Confidence threshold
+            if (conf < 0.4) continue;
             
             // Find class with highest score
             let maxClass = 0;
@@ -246,13 +320,15 @@ function postprocess(output, imgWidth, imgHeight, modelWidth, modelHeight) {
             }
             
             const finalScore = conf * maxScore;
-            if (finalScore < 0.25) continue; // Combined confidence threshold
+            if (finalScore < 0.4) continue;
             
             // ONLY DETECT PHONES (class 67 = cell phone)
-            if (maxClass !== 67) continue; // Skip non-phone objects
+            if (maxClass !== 67) continue;
+            
+            console.log(`YOLOv5 Phone detected! Confidence: ${(finalScore * 100).toFixed(1)}%`);
             
             detections.push({
-                x: x_center - w / 2, // Convert center to top-left
+                x: x_center - w / 2,
                 y: y_center - h / 2,
                 width: w,
                 height: h,
@@ -261,41 +337,12 @@ function postprocess(output, imgWidth, imgHeight, modelWidth, modelHeight) {
                 score: finalScore
             });
         }
-    } else if (outputDims.length === 3 && outputDims[2] === 6) {
-        // Format: [batch, num_detections, 6] - already has NMS applied
-        const numDetections = outputDims[1];
         
-        for (let i = 0; i < numDetections; i++) {
-            const offset = i * 6;
-            const x = outputData[offset] * scaleX;
-            const y = outputData[offset + 1] * scaleY;
-            const w = outputData[offset + 2] * scaleX;
-            const h = outputData[offset + 3] * scaleY;
-            const conf = outputData[offset + 4];
-            const classId = Math.round(outputData[offset + 5]);
-            
-            if (conf < 0.25) continue;
-            
-            // ONLY DETECT PHONES (class 67 = cell phone)
-            if (classId !== 67) continue; // Skip non-phone objects
-            
-            detections.push({
-                x: x - w / 2,
-                y: y - h / 2,
-                width: w,
-                height: h,
-                class: classId,
-                className: CLASS_NAMES[classId] || `class_${classId}`,
-                score: conf
-            });
-        }
-    }
-    
-    // Apply NMS if not already applied
-    if (outputDims[2] === 85) {
         return nms(detections, 0.45);
     }
     
+    // Fallback for other formats
+    console.log('Unknown output format:', outputDims);
     return detections;
 }
 
@@ -390,6 +437,11 @@ async function predictWebcam() {
             // Post-process
             await new Promise(resolve => setTimeout(resolve, 10));
             const detections = postprocess(output, video.videoWidth, video.videoHeight, modelWidth, modelHeight);
+            
+            // Debug: Log all detections
+            if (detections.length > 0) {
+                console.log(`Found ${detections.length} phone detection(s):`, detections);
+            }
             
             // Render - use requestAnimationFrame to ensure smooth updates
             requestAnimationFrame(() => {
@@ -546,7 +598,7 @@ requestPermissionBtn.addEventListener('click', async () => {
         // Wait for video to load
         video.addEventListener("loadeddata", () => {
             isRunning = true;
-            statusPanel.innerText = "Active: YOLOv5 Nano";
+            statusPanel.innerText = "Active: YOLOv8 Nano";
             statusPanel.classList.add('status-safe');
             setTimeout(() => {
                 if (window.requestIdleCallback) {
