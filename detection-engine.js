@@ -43,7 +43,7 @@ const startBtnAlt = document.getElementById('start-btn-alt');
 const requestPermissionBtn = document.getElementById('request-permission-btn');
 const stopBtn = document.getElementById('stop-btn');
 const soundToggle = document.getElementById('sound-toggle');
-const pipToggle = document.getElementById('pip-toggle');
+const pipBtn = document.getElementById('pip-btn');
 const pipInfo = document.getElementById('pip-info');
 
 const video = document.getElementById('webcam');
@@ -128,17 +128,14 @@ document.addEventListener('visibilitychange', async () => {
         audioContext.resume();
     }
     
-    // Auto-enable Picture-in-Picture when tab is hidden (keeps detection running!)
-    if (isTabHidden && isRunning && pipEnabled) {
+    // Auto-enable Picture-in-Picture when tab is hidden
+    // Only works after user has clicked the PiP button once (browser security)
+    if (isTabHidden && isRunning && pipEnabled && !document.pictureInPictureElement) {
+        console.log('Tab hidden, attempting auto-PiP...');
         const entered = await enterPictureInPicture();
         if (entered) {
             console.log('Auto-enabled PiP for background detection');
         }
-    }
-    
-    // Exit PiP when tab becomes visible again
-    if (!isTabHidden && document.pictureInPictureElement) {
-        await exitPictureInPicture();
     }
 });
 
@@ -336,7 +333,7 @@ async function startSystem() {
                 clearInterval(checkVideo);
                 isRunning = true;
                 statusPanel.innerText = "Active: YOLOv8 Nano";
-                statusPanel.classList.add('status-safe');
+        statusPanel.classList.add('status-safe');
                 // Start detection with delay
                 setTimeout(() => {
                     if (window.requestIdleCallback) {
@@ -604,8 +601,8 @@ async function predictWebcam() {
         } catch (err) {
             console.warn("Detection error:", err);
             isProcessing = false;
-        }
-        
+    }
+
         // Schedule next detection with longer delay
         setTimeout(predictWebcam, 1000);
     }, 200); // Initial delay to yield to browser
@@ -622,7 +619,7 @@ function displayDetections(detections) {
         const { x, y, width, height, className, score } = det;
         const scorePercent = Math.round(score * 100);
 
-        phoneFound = true;
+            phoneFound = true;
 
         // Canvas is mirrored with CSS transform: scaleX(-1) to match video
         // So we draw at the original coordinates (no mirroring needed in code)
@@ -793,18 +790,40 @@ soundToggle.addEventListener('change', (e) => {
     soundEnabled = e.target.checked;
 });
 
-// PiP toggle handler
-if (pipToggle) {
-    pipToggle.addEventListener('change', (e) => {
-        pipEnabled = e.target.checked;
-        console.log('Background detection (PiP):', pipEnabled ? 'enabled' : 'disabled');
-        
-        // If disabled and currently in PiP, exit it
-        if (!pipEnabled && document.pictureInPictureElement) {
-            exitPictureInPicture();
+// PiP button handler - manual trigger (works better with browser restrictions)
+if (pipBtn) {
+    pipBtn.addEventListener('click', async () => {
+        if (document.pictureInPictureElement) {
+            // Already in PiP, exit it
+            await exitPictureInPicture();
+            pipBtn.classList.remove('active');
+            pipBtn.innerHTML = '<span>📺 Pop Out</span>';
+        } else {
+            // Enter PiP
+            const success = await enterPictureInPicture();
+            if (success) {
+                pipBtn.classList.add('active');
+                pipBtn.innerHTML = '<span>Pop Out Active</span>';
+                pipEnabled = true; // Enable auto-PiP after manual trigger
+            }
         }
     });
 }
+
+// Update button when PiP state changes
+video.addEventListener('enterpictureinpicture', () => {
+    if (pipBtn) {
+        pipBtn.classList.add('active');
+        pipBtn.innerHTML = '<span>Pop Out Active</span>';
+    }
+});
+
+video.addEventListener('leavepictureinpicture', () => {
+    if (pipBtn) {
+        pipBtn.classList.remove('active');
+        pipBtn.innerHTML = '<span>📺 Pop Out</span>';
+    }
+});
 
 // Hide PiP info after 8 seconds
 if (pipInfo) {

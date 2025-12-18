@@ -759,10 +759,30 @@ body {
     }
 }
 
-/* Picture-in-Picture Toggle */
-.pip-toggle-wrapper {
-    display: flex;
-    align-items: center;
+/* Picture-in-Picture Button */
+.btn-pip {
+    background: var(--primary-green);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-pip:hover {
+    background: #2db84e;
+    transform: scale(1.02);
+}
+
+.btn-pip.active {
+    background: #ff9500;
+}
+
+.btn-pip.active span::before {
+    content: '✓ ';
 }
 
 .pip-info {
