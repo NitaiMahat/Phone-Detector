@@ -10,9 +10,9 @@ AI-powered phone detection to help you stay focused and productive.
 - Picture-in-Picture mode for background detection
 - 100% private - all processing happens locally in your browser
 
-## Live Demo
+## Live 
 
-[Your deployed URL here]
+[[focusgaurd](https://focusgaurd.com/)]
 
 ## Usage
 
